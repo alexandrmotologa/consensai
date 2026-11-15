@@ -1,0 +1,28 @@
+version: "1.0"
+
+server:
+  port: 6060
+  cors_allowed_origins:
+    - "*"
+  read_timeout_seconds: 30
+  write_timeout_seconds: 60
+
+provider:
+  default: "mock" # options: mock, openai, anthropic, gemini, ollama
+  api_key_env: "OPENAI_API_KEY"
+  model: "gpt-4o"
+  temperature: 0.1
+  max_tokens: 2048
+
+protocol:
+  max_rounds: 3
+  thresholds:
+    approve: 0.70
+    reject: 0.35
+  strict_citations: true
+  min_citation_coverage: 0.80
+
+ledger:
+  storage_path: "./ledgers"
+  hash_algorithm: "sha256"
+  enable_merkle_roots: true

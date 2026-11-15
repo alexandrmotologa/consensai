@@ -1,0 +1,58 @@
+{
+  "id": "wire_fraud_investigation",
+  "title": "High-Value Outgoing Wire Adjudication ($184,500)",
+  "domain": "fraud_investigation",
+  "risk_tier": "tier_1_high",
+  "transaction": {
+    "wire_id": "WR-2026-08912",
+    "timestamp_utc": "2026-11-14T14:32:10Z",
+    "amount_usd": 184500,
+    "currency": "USD",
+    "originator_account": {
+      "account_name": "Apex Global Logistics Inc.",
+      "account_number_masked": "******4918",
+      "average_monthly_balance_usd": 620000,
+      "typical_outgoing_wire_limit_usd": 75000
+    },
+    "beneficiary": {
+      "beneficiary_name": "Skyline Harbor Trade Ltd",
+      "bank_name": "HSBC Hong Kong",
+      "routing_swift": "HSBCHKHHXXX",
+      "jurisdiction": "Hong Kong SAR",
+      "relationship_history": "First transfer to this beneficiary account"
+    }
+  },
+  "anomaly_indicators": [
+    {
+      "code": "IP_GEOLOCATION_MISMATCH",
+      "severity": "critical",
+      "details": "Initiating web session originated from IP 185.220.101.44 (Tallinn, Estonia). Historic primary login geolocation is Dallas, TX (US). VPN exit node confirmed."
+    },
+    {
+      "code": "BENEFICIARY_RECENTLY_MODIFIED",
+      "severity": "high",
+      "details": "Beneficiary wire template bank account updated 2 hours 14 minutes prior to wire submission."
+    },
+    {
+      "code": "VELOCITY_THRESHOLD_EXCEEDED",
+      "severity": "medium",
+      "details": "Single transaction amount ($184,500) represents 246% of standard single wire limit ($75,000)."
+    }
+  ],
+  "corroborating_evidence": [
+    {
+      "source": "Corporate Email Security Gateway",
+      "status": "SUSPICIOUS",
+      "notes": "Payment authorization email received from CFO email address, but DKIM signature failed and reply-to header was modified."
+    },
+    {
+      "source": "Out-of-Band Phone Verification",
+      "status": "UNREACHABLE",
+      "notes": "Two automated voice verification calls to registered corporate treasurer phone went to voicemail."
+    }
+  ],
+  "regulatory_mandates": [
+    "Bank Secrecy Act / FinCEN suspicious activity report filing requirements",
+    "OFAC sanctions screening cleared for entity name, pending beneficial ownership check"
+  ]
+}

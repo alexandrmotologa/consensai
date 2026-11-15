@@ -1,0 +1,55 @@
+{
+  "id": "healthcare_hipaa_compliance",
+  "title": "Vendor AI Deployment Compliance Audit (HIPAA & BAA)",
+  "domain": "regulatory_compliance",
+  "risk_tier": "tier_2_medium",
+  "vendor": {
+    "company_name": "CortexHealth AI Systems Inc.",
+    "product_name": "Clinical Copilot v2.4",
+    "deployment_model": "Multi-tenant AWS Cloud with Dedicated VPC Peering",
+    "intended_clinical_use": "Ambient transcription of patient-oncologist encounters and automatic EHR chart generation"
+  },
+  "compliance_controls": {
+    "business_associate_agreement": {
+      "status": "SIGNED",
+      "signed_date": "2026-02-10",
+      "indemnification_cap_usd": 5000000,
+      "breach_notification_window_hours": 24
+    },
+    "technical_safeguards": {
+      "encryption_at_rest": "AES-256 GCM with customer-managed KMS keys",
+      "encryption_in_transit": "TLS 1.3 with strict HSTS",
+      "access_control": "Okta SAML 2.0 with biometric hardware MFA required",
+      "audit_logging": "AWS CloudTrail and VPC Flow Logs exported to Datadog"
+    },
+    "phi_handling": {
+      "de_identification_method": "Heuristic NER pipeline with regex fallback (not Expert Determination or Safe Harbor 18-identifier stripping)",
+      "retention_period_days": 90,
+      "training_on_customer_phi": false
+    }
+  },
+  "audit_findings": [
+    {
+      "code": "AUDIT_LOG_RETENTION_DEFICIENCY",
+      "severity": "high",
+      "details": "Audit logs are scheduled for deletion after 90 days. 45 CFR § 164.316(b)(2)(i) mandates medical audit log retention for 6 years.",
+      "remediation_status": "PENDING_VENDOR_PATCH"
+    },
+    {
+      "code": "DE_IDENTIFICATION_METHODOLOGY",
+      "severity": "medium",
+      "details": "Heuristic named entity recognition misses approximately 1.4% of direct identifiers (such as rare geographic sub-divisions and unusual dates of birth).",
+      "remediation_status": "REQUIRES_HUMAN_IN_THE_LOOP_REVIEW"
+    },
+    {
+      "code": "SUBPROCESSOR_TRANSPARENCY",
+      "severity": "low",
+      "details": "Vendor utilizes a third-party speech-to-text inference API. BAA contains pass-through liability terms.",
+      "remediation_status": "CONTRACTUALLY_ACCEPTED"
+    }
+  ],
+  "governance_decision_criteria": [
+    "Strict compliance requires 6-year immutable audit log storage prior to production rollout.",
+    "Conditional approval permitted if PHI processing is isolated to non-production staging pilot with synthetic data."
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "id": "commercial_loan_500k",
+  "title": "Commercial Credit Underwriting ($500,000)",
+  "domain": "credit_underwriting",
+  "risk_tier": "tier_2_medium",
+  "applicant": {
+    "entity_name": "Vanguard Precision Machining LLC",
+    "industry": "Industrial CNC Manufacturing",
+    "years_in_business": 7,
+    "state_of_incorporation": "Ohio",
+    "loan_request": {
+      "amount_usd": 500000,
+      "purpose": "Equipment refinance and expansion of 5-axis milling capacity",
+      "requested_term_months": 60,
+      "proposed_interest_rate": 7.85
+    }
+  },
+  "financial_statements": {
+    "fiscal_year_ending": "2025-12-31",
+    "annual_revenue_usd": 2840000,
+    "gross_margin_pct": 34.2,
+    "ebitda_usd": 460000,
+    "net_income_usd": 295000,
+    "total_existing_debt_usd": 680000,
+    "current_assets_usd": 890000,
+    "current_liabilities_usd": 410000,
+    "quick_ratio": 1.72,
+    "debt_service_coverage_ratio": 1.48,
+    "pro_forma_dscr_with_loan": 1.28
+  },
+  "collateral": {
+    "type": "Machinery and Equipment",
+    "appraised_liquidation_value_usd": 920000,
+    "appraisal_firm": "Midwest Industrial Valuation Group",
+    "appraisal_date": "2026-01-15",
+    "loan_to_value_ratio_pct": 54.3
+  },
+  "guarantor": {
+    "name": "Marcus Vance",
+    "ownership_pct": 100,
+    "fico_score": 742,
+    "net_worth_usd": 1450000,
+    "personal_liquidity_usd": 310000,
+    "unconditional_personal_guarantee": true
+  },
+  "adverse_factors": [
+    {
+      "factor": "Customer Concentration Risk",
+      "description": "38% of 2025 revenue originated from a single tier-1 automotive supplier (Apex Powertrain Inc.).",
+      "severity": "medium",
+      "mitigation_notes": "Contract extended through 2028 with minimum annual purchase commitments of $1.1M."
+    },
+    {
+      "factor": "Active Supplier Dispute",
+      "description": "Pending municipal court contract dispute with alloy supplier MetalCraft Alloys LLC for $45,000.",
+      "severity": "low",
+      "mitigation_notes": "Company escrow account holds $50,000 in segregated funds pending resolution."
+    }
+  ],
+  "covenants_required": [
+    "Minimum DSCR of 1.20x tested quarterly",
+    "Maximum Debt to Tangible Net Worth of 3.0x",
+    "First-priority security interest in all machinery"
+  ]
+}
