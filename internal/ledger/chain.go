@@ -129,11 +129,30 @@ func (l *Ledger) Verify() (bool, error) {
 	return true, nil
 }
 
+// AddHumanAdjudication appends a signed human adjudication block to the ledger chain.
+func (l *Ledger) AddHumanAdjudication(adj *protocol.HumanAdjudication) (*Block, error) {
+	return l.AddBlock(BlockTypeHumanAdjudication, 5, map[string]interface{}{
+		"phase":        "HUMAN_ADJUDICATION",
+		"adjudication": adj,
+	})
+}
+
 // CreateFromState constructs a complete verified ledger from a finalized deliberation state.
 func CreateFromState(state *protocol.DeliberationState) (*Ledger, error) {
 	l, err := NewLedger(state.ID, state.DossierID, state.DossierRaw)
 	if err != nil {
 		return nil, err
+	}
+
+	// Compute Merkle root over all audited claims
+	if len(state.AllClaims) > 0 {
+		var claimHashes []string
+		for _, c := range state.AllClaims {
+			claimHashes = append(claimHashes, fmt.Sprintf("%s:%s:%s:%s", c.ID, c.AgentRole, c.Statement, c.AuditedStatus))
+		}
+		if tree, err := NewMerkleTree(claimHashes); err == nil && state.Synthesis != nil {
+			state.Synthesis.MerkleRoot = tree.RootHash()
+		}
 	}
 
 	// Filter turns by round
@@ -186,6 +205,13 @@ func CreateFromState(state *protocol.DeliberationState) (*Ledger, error) {
 			"phase":     "SYNTHESIS",
 			"synthesis": state.Synthesis,
 		}); err != nil {
+			return nil, err
+		}
+	}
+
+	// Block 5: Human Adjudication (if already recorded)
+	if state.Adjudication != nil {
+		if _, err := l.AddHumanAdjudication(state.Adjudication); err != nil {
 			return nil, err
 		}
 	}

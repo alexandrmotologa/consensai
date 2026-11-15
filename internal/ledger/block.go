@@ -16,7 +16,8 @@ const (
 	BlockTypeRound1    BlockType = "ROUND_1_FRAMING"
 	BlockTypeRound2    BlockType = "ROUND_2_REBUTTAL"
 	BlockTypeRound3    BlockType = "ROUND_3_AUDIT"
-	BlockTypeSynthesis BlockType = "SYNTHESIS_DECISION"
+	BlockTypeSynthesis         BlockType = "SYNTHESIS_DECISION"
+	BlockTypeHumanAdjudication BlockType = "HUMAN_ADJUDICATION"
 )
 
 // Block represents an immutable cryptographic record in the audit chain.

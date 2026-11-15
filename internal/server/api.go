@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,6 +57,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/deliberate", s.handleDeliberate)
 	mux.HandleFunc("GET /api/deliberate/{id}/stream", s.handleStream)
 	mux.HandleFunc("GET /api/deliberate/{id}/ledger", s.handleGetLedger)
+	mux.HandleFunc("POST /api/deliberate/{id}/adjudicate", s.handleAdjudicate)
+	mux.HandleFunc("POST /api/deliberate/{id}/recalculate", s.handleRecalculate)
+	mux.HandleFunc("GET /api/deliberate/{id}/certificate", s.handleGetCertificate)
 	mux.HandleFunc("POST /api/ledger/verify", s.handleVerifyLedger)
 	mux.HandleFunc("GET /api/deliberate/{id}/memo", s.handleGetMemo)
 
@@ -181,6 +186,12 @@ type DeliberateRequest struct {
 	Model            string                 `json:"model,omitempty"`
 	ThresholdApprove float64                `json:"threshold_approve,omitempty"`
 	ThresholdReject  float64                `json:"threshold_reject,omitempty"`
+	AdvocateProvider string                 `json:"advocate_provider,omitempty"`
+	AdvocateModel    string                 `json:"advocate_model,omitempty"`
+	SkepticProvider  string                 `json:"skeptic_provider,omitempty"`
+	SkepticModel     string                 `json:"skeptic_model,omitempty"`
+	AuditorProvider  string                 `json:"auditor_provider,omitempty"`
+	AuditorModel     string                 `json:"auditor_model,omitempty"`
 }
 
 func (s *Server) handleDeliberate(w http.ResponseWriter, r *http.Request) {
@@ -260,9 +271,46 @@ func (s *Server) handleDeliberate(w http.ResponseWriter, r *http.Request) {
 		protoCfg.Thresholds.Reject = req.ThresholdReject
 	}
 
-	advocate := agent.NewAdvocateAgent(client)
-	skeptic := agent.NewSkepticAgent(client)
-	auditor := agent.NewAuditorAgent(client)
+	// Multi-model arena: instantiate per-agent clients if configured
+	advClient := client
+	if req.AdvocateProvider != "" {
+		advCfg := providerCfg
+		advCfg.Default = req.AdvocateProvider
+		if req.AdvocateModel != "" {
+			advCfg.Model = req.AdvocateModel
+		}
+		if c, err := agent.NewProviderClient(&advCfg); err == nil {
+			advClient = c
+		}
+	}
+
+	skpClient := client
+	if req.SkepticProvider != "" {
+		skpCfg := providerCfg
+		skpCfg.Default = req.SkepticProvider
+		if req.SkepticModel != "" {
+			skpCfg.Model = req.SkepticModel
+		}
+		if c, err := agent.NewProviderClient(&skpCfg); err == nil {
+			skpClient = c
+		}
+	}
+
+	audClient := client
+	if req.AuditorProvider != "" {
+		audCfg := providerCfg
+		audCfg.Default = req.AuditorProvider
+		if req.AuditorModel != "" {
+			audCfg.Model = req.AuditorModel
+		}
+		if c, err := agent.NewProviderClient(&audCfg); err == nil {
+			audClient = c
+		}
+	}
+
+	advocate := agent.NewAdvocateAgent(advClient)
+	skeptic := agent.NewSkepticAgent(skpClient)
+	auditor := agent.NewAuditorAgent(audClient)
 	engine := protocol.NewEngine(&protoCfg, advocate, skeptic, auditor)
 
 	// Create broadcaster and register under active
@@ -417,4 +465,140 @@ func (s *Server) handleGetMemo(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	_, _ = w.Write([]byte(md))
+}
+
+type AdjudicateRequest struct {
+	OfficerID     string   `json:"officer_id"`
+	OfficerName   string   `json:"officer_name"`
+	OfficerRole   string   `json:"officer_role"`
+	Decision      string   `json:"decision"`
+	Justification string   `json:"justification"`
+	Conditions    []string `json:"conditions"`
+}
+
+func (s *Server) handleAdjudicate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req AdjudicateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid payload: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	rec, ok := s.sessions[id]
+	if !ok || rec.Ledger == nil {
+		http.Error(w, fmt.Sprintf("Session %s not found", id), http.StatusNotFound)
+		return
+	}
+
+	sigData := fmt.Sprintf("%s:%s:%s:%s:%s", req.OfficerID, req.Decision, req.Justification, id, time.Now().UTC().Format(time.RFC3339))
+	sigHashBytes := sha256.Sum256([]byte(sigData))
+	sigHash := hex.EncodeToString(sigHashBytes[:])
+
+	adj := &protocol.HumanAdjudication{
+		OfficerID:     req.OfficerID,
+		OfficerName:   req.OfficerName,
+		OfficerRole:   req.OfficerRole,
+		Decision:      req.Decision,
+		Justification: req.Justification,
+		Conditions:    req.Conditions,
+		SignatureHash: sigHash,
+		Timestamp:     time.Now().UTC(),
+	}
+
+	block, err := rec.Ledger.AddHumanAdjudication(adj)
+	if err != nil {
+		http.Error(w, "Failed adding adjudication block: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rec.State.Adjudication = adj
+
+	// Broadcast adjudication event
+	if b, exists := s.broadcasters[id]; exists {
+		b.Broadcast(protocol.EngineEvent{
+			Type:      "adjudication_committed",
+			SessionID: id,
+			Timestamp: time.Now().UTC(),
+			Data: map[string]interface{}{
+				"adjudication": adj,
+				"block":        block,
+			},
+		})
+	}
+	if b, exists := s.broadcasters["active"]; exists {
+		b.Broadcast(protocol.EngineEvent{
+			Type:      "adjudication_committed",
+			SessionID: id,
+			Timestamp: time.Now().UTC(),
+			Data: map[string]interface{}{
+				"adjudication": adj,
+				"block":        block,
+			},
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":         "adjudicated",
+		"adjudication":   adj,
+		"block_index":    block.Index,
+		"head_hash":      block.Hash,
+		"signature_hash": sigHash,
+	})
+}
+
+type RecalculateRequest struct {
+	ThresholdApprove float64 `json:"threshold_approve"`
+	ThresholdReject  float64 `json:"threshold_reject"`
+}
+
+func (s *Server) handleRecalculate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	var req RecalculateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid payload: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.RLock()
+	rec, ok := s.sessions[id]
+	s.mu.RUnlock()
+
+	if !ok || rec.State == nil {
+		http.Error(w, fmt.Sprintf("Session %s not found", id), http.StatusNotFound)
+		return
+	}
+
+	synth := protocol.NewSynthesizer(config.ThresholdConfig{
+		Approve: req.ThresholdApprove,
+		Reject:  req.ThresholdReject,
+	})
+
+	newResult := synth.ComputeEpistemicConsensus(rec.State.AllClaims, rec.State.AuditFindings, rec.State.Turns)
+	newResult.Compliance = protocol.EvaluateCompliance(rec.State.DossierID, rec.State.DossierRaw, newResult.Decision, rec.State.AllClaims)
+	if rec.State.Synthesis != nil {
+		newResult.MerkleRoot = rec.State.Synthesis.MerkleRoot
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(newResult)
+}
+
+func (s *Server) handleGetCertificate(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	s.mu.RLock()
+	rec, ok := s.sessions[id]
+	s.mu.RUnlock()
+
+	if !ok || rec.State == nil {
+		http.Error(w, fmt.Sprintf("Session %s not found", id), http.StatusNotFound)
+		return
+	}
+
+	html := report.GeneratePrintableCertificateHTML(rec.State, rec.Ledger)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(html))
 }

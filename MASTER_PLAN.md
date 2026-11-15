@@ -225,3 +225,23 @@ consensai/
 
 4. **Calibrated Epistemic Uncertainty & Confidence Interval Formulation**:
    - Integrated standard error derivation $SE = \sqrt{C(1-C)/N}$ and 95% confidence interval calculations $[CI_{95}]$ into both the Go synthesizer and the SVG circular gauge in the React 19 cockpit.
+
+5. **Human-in-the-Loop (HITL) Adjudication & Cryptographic Override (EU AI Act Art. 14)**:
+   - Built interactive officer adjudication workflow allowing risk executives to issue conditional approvals, exemptions, or overrides.
+   - Every adjudication generates an officer digital signature hash and appends an immutable block (`BlockTypeHumanAdjudication`, Block #5) to the SHA-256 ledger.
+
+6. **Multi-Model Adversarial Arena (Cross-Vendor Bias Elimination)**:
+   - Configurable per-agent LLM providers allowing divergent models for opposing roles (e.g. Claude 3.5 Sonnet for The Advocate vs GPT-4o for The Skeptic), eliminating single-vendor blind spots and latent pre-training biases.
+
+7. **Interactive Dossier Builder, Ingestor & Drag-and-Drop Playground**:
+   - Web workspace supporting custom JSON dossier drafting, syntax validation, file drag-and-drop (`.json`), and enterprise templates (Jumbo Mortgage, AML PEP Screening, Commercial Credit, Wire Fraud).
+
+8. **Real-Time What-If Sensitivity Analyzer & Dynamic Risk Frontier**:
+   - Interactive calibration sliders for $\theta_{\text{approve}}$ and $\theta_{\text{reject}}$ that re-evaluate decisions and risk frontier margins instantly without re-invoking LLM inference.
+
+9. **Cryptographic Merkle Tree Proofs & Institutional Printable Certificate**:
+   - Generates a binary Merkle tree over all audited assertions and claims.
+   - Produces a formal, self-contained printable HTML audit certificate (`/api/deliberate/{id}/certificate`) with official seal formatting, Merkle root hash, and statutory scorecard.
+
+10. **Statutory Regulatory Compliance Scorecard**:
+    - Automated rules evaluating EU AI Act Article 14 human oversight requirements, Basel III DSCR capital adequacy covenants, FCRA adverse action notice triggers, and HIPAA 45 CFR § 164 6-year retention compliance.

@@ -3,9 +3,10 @@ import { Ledger, Block } from '../types';
 
 interface LedgerVerifierProps {
   ledger: Ledger | null;
+  merkleRoot?: string;
 }
 
-export const LedgerVerifier: React.FC<LedgerVerifierProps> = ({ ledger }) => {
+export const LedgerVerifier: React.FC<LedgerVerifierProps> = ({ ledger, merkleRoot }) => {
   const [expandedBlock, setExpandedBlock] = useState<number | null>(null);
   const [verificationResult, setVerificationResult] = useState<{
     valid: boolean;
@@ -69,7 +70,13 @@ export const LedgerVerifier: React.FC<LedgerVerifierProps> = ({ ledger }) => {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {merkleRoot && (
+            <div className="text-[11px] font-mono px-2.5 py-1 rounded bg-indigo-950/60 border border-indigo-800 text-indigo-300">
+              MERKLE ROOT: <span className="text-white font-bold">{merkleRoot.substring(0, 16)}...</span>
+            </div>
+          )}
+
           <button
             onClick={() => handleVerify(false)}
             disabled={!ledger || isVerifying}

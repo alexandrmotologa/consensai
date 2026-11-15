@@ -220,6 +220,7 @@ func (e *Engine) RunDeliberation(
 	emit("phase_change", 4, RoleSynthesizer, "Deterministic Epistemic Consensus Synthesis")
 
 	synthesis := e.synthesizer.ComputeEpistemicConsensus(state.AllClaims, state.AuditFindings, state.Turns)
+	synthesis.Compliance = EvaluateCompliance(dossierID, dossierRaw, synthesis.Decision, state.AllClaims)
 	state.Synthesis = synthesis
 	completedAt := time.Now().UTC()
 	state.CompletedAt = &completedAt

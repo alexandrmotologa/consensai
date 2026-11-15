@@ -67,8 +67,38 @@ func (m *DecisionMemo) GenerateMarkdown(headHash string) string {
 	}
 	sb.WriteString("\n")
 
-	sb.WriteString("## 5. Cryptographic Audit Proof\n\n")
+	if m.State.Adjudication != nil {
+		adj := m.State.Adjudication
+		sb.WriteString("## 5. Human-in-the-Loop Adjudication (EU AI Act Art. 14)\n\n")
+		sb.WriteString(fmt.Sprintf("- **Adjudicating Officer:** %s (%s, ID: `%s`)\n", adj.OfficerName, adj.OfficerRole, adj.OfficerID))
+		sb.WriteString(fmt.Sprintf("- **Override Determination:** **%s**\n", adj.Decision))
+		sb.WriteString(fmt.Sprintf("- **Officer Signature Hash:** `%s`\n", adj.SignatureHash))
+		sb.WriteString(fmt.Sprintf("- **Justification:** %s\n\n", adj.Justification))
+		if len(adj.Conditions) > 0 {
+			sb.WriteString("**Mandatory Operating Conditions:**\n")
+			for _, cond := range adj.Conditions {
+				sb.WriteString(fmt.Sprintf("- %s\n", cond))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	if s.Compliance != nil && len(s.Compliance.Checks) > 0 {
+		sb.WriteString("## 6. Statutory Regulatory Compliance Scorecard\n\n")
+		sb.WriteString("| Standard | Description | Status | Findings |\n")
+		sb.WriteString("| :--- | :--- | :--- | :--- |\n")
+		for _, chk := range s.Compliance.Checks {
+			sb.WriteString(fmt.Sprintf("| `%s` | %s | **%s** | %s |\n",
+				chk.Standard, escapePipes(chk.Description), chk.Status, escapePipes(chk.Notes)))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("## 7. Cryptographic Audit Proof\n\n")
 	sb.WriteString(fmt.Sprintf("- **Ledger Head Block Hash:** `%s`\n", headHash))
+	if s.MerkleRoot != "" {
+		sb.WriteString(fmt.Sprintf("- **Claims Merkle Tree Root:** `%s`\n", s.MerkleRoot))
+	}
 	sb.WriteString("- **Verification Status:** Verified with SHA-256 hash chaining\n")
 	sb.WriteString("- **Immutable Record:** Stored in append-only audit trail\n\n")
 

@@ -97,3 +97,44 @@ The consensai orchestrator provides an HTTP server on port 6060 with REST endpoi
 - **Method**: `GET`
 - **Path**: `/api/deliberate/:id/memo?format=markdown`
 - **Response**: Formatted Markdown or HTML decision memo.
+
+### 9. Human-in-the-Loop Adjudication
+- **Method**: `POST`
+- **Path**: `/api/deliberate/:id/adjudicate`
+- **Request Body**:
+```json
+{
+  "officer_id": "CRO-8842",
+  "officer_name": "Elena Vance",
+  "officer_role": "Chief Risk Officer",
+  "decision": "CONDITIONAL_APPROVE",
+  "justification": "Approved subject to $50,000 cash escrow cushion.",
+  "conditions": ["Quarterly DSCR covenant test"]
+}
+```
+- **Response**:
+```json
+{
+  "status": "adjudicated",
+  "block_index": 5,
+  "head_hash": "a1b2c3d4...",
+  "signature_hash": "e5f6..."
+}
+```
+
+### 10. Sensitivity Recalculation (What-If Analysis)
+- **Method**: `POST`
+- **Path**: `/api/deliberate/:id/recalculate`
+- **Request Body**:
+```json
+{
+  "threshold_approve": 0.65,
+  "threshold_reject": 0.30
+}
+```
+- **Response**: Recomputed `SynthesisResult` with updated decision boundaries without re-invoking LLMs.
+
+### 11. Printable Compliance Certificate
+- **Method**: `GET`
+- **Path**: `/api/deliberate/:id/certificate`
+- **Response**: Self-contained printable HTML document with official seal, Merkle root hash, and statutory scorecard.

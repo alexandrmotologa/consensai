@@ -10,7 +10,11 @@ interface HeaderProps {
   systemStatus: SystemStatus | null;
   onOpenDossierModal: () => void;
   onOpenMemoModal: () => void;
+  onOpenArenaModal: () => void;
+  onOpenAdjudicationModal: () => void;
+  onExportCertificate: () => void;
   hasCompletedMemo: boolean;
+  canAdjudicate: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,7 +26,11 @@ export const Header: React.FC<HeaderProps> = ({
   systemStatus,
   onOpenDossierModal,
   onOpenMemoModal,
+  onOpenArenaModal,
+  onOpenAdjudicationModal,
+  onExportCertificate,
   hasCompletedMemo,
+  canAdjudicate,
 }) => {
   return (
     <header className="border-b border-border bg-surface px-6 py-4">
@@ -59,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
               <span className={`font-medium ${systemStatus.allocated_memory_mb > 25 ? 'text-amber-400' : 'text-cyan-400'}`}>
                 {systemStatus.allocated_memory_mb.toFixed(2)} MB
               </span>
-              <span className="text-slate-500"> (&lt; 25MB target)</span>
+              <span className="text-slate-500"> (&lt; 25MB)</span>
             </div>
             <span className="text-slate-600">|</span>
             <div>
@@ -69,11 +77,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2">
           {/* Dossier Picker */}
-          <div className="flex items-center space-x-2">
-            <label className="text-xs font-medium text-slate-400">Dossier:</label>
+          <div className="flex items-center space-x-1.5">
             <select
               value={selectedDossier}
               onChange={(e) => onSelectDossier(e.target.value)}
@@ -89,18 +96,46 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           <button
-            onClick={onOpenDossierModal}
-            className="rounded-lg bg-surface-elevated hover:bg-slate-700/80 border border-border px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors"
+            onClick={onOpenArenaModal}
+            className="rounded-lg bg-surface-elevated hover:bg-slate-700/80 border border-border px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-colors flex items-center space-x-1"
+            title="Configure cross-vendor AI models per agent"
           >
-            Inspect Dossier
+            <span>Model Arena</span>
+          </button>
+
+          <button
+            onClick={onOpenDossierModal}
+            className="rounded-lg bg-surface-elevated hover:bg-slate-700/80 border border-border px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-colors"
+          >
+            Dossier Raw
           </button>
 
           {hasCompletedMemo && (
+            <>
+              <button
+                onClick={onOpenMemoModal}
+                className="rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-700/60 px-2.5 py-1.5 text-xs font-medium text-cyan-300 transition-colors"
+              >
+                Decision Memo
+              </button>
+
+              <button
+                onClick={onExportCertificate}
+                className="rounded-lg bg-indigo-950/70 hover:bg-indigo-900/70 border border-indigo-700/70 px-2.5 py-1.5 text-xs font-medium text-indigo-300 transition-colors"
+                title="Printable official compliance certificate"
+              >
+                Certificate (PDF)
+              </button>
+            </>
+          )}
+
+          {canAdjudicate && (
             <button
-              onClick={onOpenMemoModal}
-              className="rounded-lg bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-700/60 px-3 py-1.5 text-xs font-medium text-cyan-300 transition-colors flex items-center space-x-1"
+              onClick={onOpenAdjudicationModal}
+              className="rounded-lg bg-amber-950/80 hover:bg-amber-900/80 border border-amber-600/80 px-2.5 py-1.5 text-xs font-bold text-amber-300 transition-colors animate-pulse"
+              title="EU AI Act Art. 14 Human Officer Override"
             >
-              <span>Decision Memo</span>
+              Adjudicate (HITL)
             </button>
           )}
 
@@ -108,7 +143,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onRunDeliberation}
             disabled={isRunning}
-            className="flex items-center space-x-2 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-cyan-600/30 transition-all disabled:opacity-50"
+            className="flex items-center space-x-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-cyan-600/30 transition-all disabled:opacity-50"
           >
             {isRunning ? (
               <>

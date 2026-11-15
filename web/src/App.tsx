@@ -7,6 +7,11 @@ import { DissentCard } from './components/DissentCard';
 import { LedgerVerifier } from './components/LedgerVerifier';
 import { MemoModal } from './components/MemoModal';
 import { DossierModal } from './components/DossierModal';
+import { ComplianceCard } from './components/ComplianceCard';
+import { HumanAdjudicationModal } from './components/HumanAdjudicationModal';
+import { SensitivityAnalyzer } from './components/SensitivityAnalyzer';
+import { DossierBuilder } from './components/DossierBuilder';
+import { ModelArenaModal } from './components/ModelArenaModal';
 import {
   DossierSummary,
   SystemStatus,
@@ -16,6 +21,8 @@ import {
   Ledger,
   AgentRole,
   EngineEvent,
+  ModelArenaConfig,
+  HumanAdjudication,
 } from './types';
 
 export const App: React.FC = () => {
@@ -33,19 +40,33 @@ export const App: React.FC = () => {
   const [claims, setClaims] = useState<Claim[]>([]);
   const [synthesis, setSynthesis] = useState<SynthesisResult | null>(null);
   const [ledger, setLedger] = useState<Ledger | null>(null);
+  const [adjudication, setAdjudication] = useState<HumanAdjudication | null>(null);
 
-  // Modals
+  // Modals & Panels
   const [isMemoModalOpen, setIsMemoModalOpen] = useState<boolean>(false);
   const [isDossierModalOpen, setIsDossierModalOpen] = useState<boolean>(false);
+  const [isArenaModalOpen, setIsArenaModalOpen] = useState<boolean>(false);
+  const [isAdjudicationModalOpen, setIsAdjudicationModalOpen] = useState<boolean>(false);
   const [memoMarkdown, setMemoMarkdown] = useState<string>('');
   const [dossierContent, setDossierContent] = useState<string>('');
 
-  // Tabs for main content view
-  const [activeTab, setActiveTab] = useState<'deliberation' | 'matrix' | 'ledger'>('deliberation');
+  // Model Arena Config
+  const [arenaConfig, setArenaConfig] = useState<ModelArenaConfig>({
+    advocate_provider: 'mock',
+    advocate_model: 'heuristic-v1',
+    skeptic_provider: 'mock',
+    skeptic_model: 'heuristic-v1',
+    auditor_provider: 'mock',
+    auditor_model: 'heuristic-v1',
+  });
+
+  // Active view tab
+  const [activeTab, setActiveTab] = useState<
+    'deliberation' | 'matrix' | 'compliance' | 'builder' | 'ledger'
+  >('deliberation');
 
   const sseRef = useRef<EventSource | null>(null);
 
-  // Fetch initial dossiers and system status
   useEffect(() => {
     fetchDossiers();
     fetchSystemStatus();
@@ -53,7 +74,6 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Update dossier content when selected dossier changes
   useEffect(() => {
     if (selectedDossier) {
       fetchDossierContent(selectedDossier);
@@ -83,7 +103,7 @@ export const App: React.FC = () => {
         setSystemStatus(data);
       }
     } catch (err) {
-      // Backend may be starting or offline
+      // Backend starting or offline
     }
   };
 
@@ -99,37 +119,48 @@ export const App: React.FC = () => {
     }
   };
 
-  const startDeliberation = async () => {
+  const startDeliberation = async (customPayload?: any) => {
     if (isRunning) return;
 
-    // Reset current state
     setIsRunning(true);
     setTurns([]);
     setClaims([]);
     setSynthesis(null);
     setLedger(null);
+    setAdjudication(null);
     setCurrentRound(0);
     setCurrentPhase('INITIALIZING');
     setActiveRole(undefined);
     setMemoMarkdown('');
 
     try {
+      const payload: any = {
+        advocate_provider: arenaConfig.advocate_provider,
+        advocate_model: arenaConfig.advocate_model,
+        skeptic_provider: arenaConfig.skeptic_provider,
+        skeptic_model: arenaConfig.skeptic_model,
+        auditor_provider: arenaConfig.auditor_provider,
+        auditor_model: arenaConfig.auditor_model,
+      };
+
+      if (customPayload) {
+        payload.custom_dossier = customPayload;
+      } else {
+        payload.dossier_id = selectedDossier;
+      }
+
       const res = await fetch('/api/deliberate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dossier_id: selectedDossier,
-          provider: 'mock',
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
         throw new Error('Failed to start deliberation');
       }
 
-      // Connect to SSE stream
-      // We listen to the global broadcast stream or poll session
       connectSSE();
+      setActiveTab('deliberation');
     } catch (err) {
       console.error('Error starting deliberation:', err);
       setIsRunning(false);
@@ -141,7 +172,6 @@ export const App: React.FC = () => {
       sseRef.current.close();
     }
 
-    // Connect to SSE stream
     const sse = new EventSource(`/api/deliberate/active/stream`);
     sseRef.current = sse;
 
@@ -177,7 +207,6 @@ export const App: React.FC = () => {
     sse.addEventListener('audit_complete', (e: MessageEvent) => {
       const data: EngineEvent = JSON.parse(e.data);
       const findings = data.data as any[];
-      // Update claim statuses with audit findings
       const findingMap = new Map();
       findings.forEach((f) => findingMap.set(f.claim_id, f));
 
@@ -207,14 +236,12 @@ export const App: React.FC = () => {
       const sessId = data.session_id;
       if (sessId) {
         setActiveSessionId(sessId);
-        // Fetch full committed ledger
         try {
           const lRes = await fetch(`/api/deliberate/${sessId}/ledger`);
           if (lRes.ok) {
             const lData = await lRes.json();
             setLedger(lData);
           }
-          // Fetch memo
           const mRes = await fetch(`/api/deliberate/${sessId}/memo`);
           if (mRes.ok) {
             const mData = await mRes.text();
@@ -222,6 +249,23 @@ export const App: React.FC = () => {
           }
         } catch (err) {
           console.error('Error fetching ledger or memo:', err);
+        }
+      }
+    });
+
+    sse.addEventListener('adjudication_committed', async (e: MessageEvent) => {
+      const data: EngineEvent = JSON.parse(e.data);
+      if (data.data?.adjudication) {
+        setAdjudication(data.data.adjudication);
+      }
+      if (activeSessionId) {
+        const lRes = await fetch(`/api/deliberate/${activeSessionId}/ledger`);
+        if (lRes.ok) {
+          setLedger(await lRes.json());
+        }
+        const mRes = await fetch(`/api/deliberate/${activeSessionId}/memo`);
+        if (mRes.ok) {
+          setMemoMarkdown(await mRes.text());
         }
       }
     });
@@ -236,12 +280,33 @@ export const App: React.FC = () => {
     });
 
     sse.onerror = () => {
-      // Stream closed or error
       setIsRunning(false);
       if (sseRef.current) {
         sseRef.current.close();
       }
     };
+  };
+
+  const handleExportCertificate = () => {
+    if (activeSessionId) {
+      window.open(`/api/deliberate/${activeSessionId}/certificate`, '_blank');
+    }
+  };
+
+  const handleAdjudicated = async (data: any) => {
+    if (data.adjudication) {
+      setAdjudication(data.adjudication);
+    }
+    if (activeSessionId) {
+      const lRes = await fetch(`/api/deliberate/${activeSessionId}/ledger`);
+      if (lRes.ok) {
+        setLedger(await lRes.json());
+      }
+      const mRes = await fetch(`/api/deliberate/${activeSessionId}/memo`);
+      if (mRes.ok) {
+        setMemoMarkdown(await mRes.text());
+      }
+    }
   };
 
   const activeDossierTitle =
@@ -254,12 +319,16 @@ export const App: React.FC = () => {
         dossiers={dossiers}
         selectedDossier={selectedDossier}
         onSelectDossier={setSelectedDossier}
-        onRunDeliberation={startDeliberation}
+        onRunDeliberation={() => startDeliberation()}
         isRunning={isRunning}
         systemStatus={systemStatus}
         onOpenDossierModal={() => setIsDossierModalOpen(true)}
         onOpenMemoModal={() => setIsMemoModalOpen(true)}
+        onOpenArenaModal={() => setIsArenaModalOpen(true)}
+        onOpenAdjudicationModal={() => setIsAdjudicationModalOpen(true)}
+        onExportCertificate={handleExportCertificate}
         hasCompletedMemo={Boolean(memoMarkdown)}
+        canAdjudicate={Boolean(activeSessionId && synthesis)}
       />
 
       {/* Main Workspace Layout */}
@@ -273,13 +342,34 @@ export const App: React.FC = () => {
               currentPhase={currentPhase}
             />
           </div>
-          <div>
+          <div className="space-y-4">
             <DissentCard dissents={synthesis?.preserved_dissents || []} />
+            {adjudication && (
+              <div className="rounded-xl border border-indigo-500/60 bg-gradient-to-br from-indigo-950/40 to-surface p-4 shadow-lg text-xs space-y-2">
+                <div className="flex items-center justify-between border-b border-indigo-500/40 pb-2">
+                  <span className="font-mono font-bold text-indigo-300 uppercase">
+                    Human Officer Adjudicated
+                  </span>
+                  <span className="rounded bg-indigo-950 px-2 py-0.5 text-[10px] font-bold text-indigo-200 border border-indigo-700">
+                    {adjudication.decision}
+                  </span>
+                </div>
+                <div className="text-slate-300 font-medium">
+                  {adjudication.officer_name} ({adjudication.officer_role})
+                </div>
+                <p className="text-slate-400 text-[11px] italic">
+                  "{adjudication.justification}"
+                </p>
+                <div className="text-[10px] font-mono text-indigo-400 truncate">
+                  SIG: {adjudication.signature_hash}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* View Switcher Tabs */}
-        <div className="flex items-center space-x-2 border-b border-border pb-2 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2 text-xs font-mono">
           <button
             onClick={() => setActiveTab('deliberation')}
             className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
@@ -290,6 +380,7 @@ export const App: React.FC = () => {
           >
             Deliberation Feed (3 Rounds)
           </button>
+
           <button
             onClick={() => setActiveTab('matrix')}
             className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
@@ -300,6 +391,29 @@ export const App: React.FC = () => {
           >
             Claim Grounding Matrix ({claims.length})
           </button>
+
+          <button
+            onClick={() => setActiveTab('compliance')}
+            className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
+              activeTab === 'compliance'
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Regulatory Compliance ({synthesis?.compliance?.checks.length || 0})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('builder')}
+            className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
+              activeTab === 'builder'
+                ? 'bg-cyan-950 text-cyan-300 border border-cyan-800'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Dossier Builder / Ingest
+          </button>
+
           <button
             onClick={() => setActiveTab('ledger')}
             className={`px-3 py-1.5 rounded-lg transition-colors font-medium ${
@@ -314,21 +428,45 @@ export const App: React.FC = () => {
 
         {/* Active Tab Content */}
         {activeTab === 'deliberation' && (
-          <DeliberationStream
-            turns={turns}
-            activeRole={activeRole}
-            currentRound={currentRound}
-          />
+          <div className="space-y-6">
+            <DeliberationStream
+              turns={turns}
+              activeRole={activeRole}
+              currentRound={currentRound}
+            />
+
+            {activeSessionId && synthesis && (
+              <SensitivityAnalyzer
+                sessionId={activeSessionId}
+                synthesis={synthesis}
+                onRecalculated={setSynthesis}
+              />
+            )}
+          </div>
         )}
 
         {activeTab === 'matrix' && <ClaimMatrix claims={claims} />}
 
-        {activeTab === 'ledger' && <LedgerVerifier ledger={ledger} />}
+        {activeTab === 'compliance' && <ComplianceCard report={synthesis?.compliance} />}
+
+        {activeTab === 'builder' && (
+          <DossierBuilder
+            onRunCustom={(custom) => startDeliberation(custom)}
+            isRunning={isRunning}
+          />
+        )}
+
+        {activeTab === 'ledger' && (
+          <LedgerVerifier
+            ledger={ledger}
+            merkleRoot={synthesis?.merkle_root}
+          />
+        )}
       </main>
 
       {/* Footer */}
       <footer className="border-t border-border bg-surface px-6 py-3 text-center text-xs text-slate-500 font-mono">
-        consensai | High-Stakes Decision Protocol | Single Binary Go Orchestrator (&lt; 25MB RAM)
+        consensai | High-Stakes Decision Protocol | Multi-Agent Epistemic Consensus &bull; Resident Memory &lt; 25MB RAM
       </footer>
 
       {/* Modals */}
@@ -343,6 +481,20 @@ export const App: React.FC = () => {
         onClose={() => setIsDossierModalOpen(false)}
         dossierContent={dossierContent}
         dossierTitle={activeDossierTitle}
+      />
+
+      <ModelArenaModal
+        isOpen={isArenaModalOpen}
+        onClose={() => setIsArenaModalOpen(false)}
+        config={arenaConfig}
+        onSave={setArenaConfig}
+      />
+
+      <HumanAdjudicationModal
+        isOpen={isAdjudicationModalOpen}
+        onClose={() => setIsAdjudicationModalOpen(false)}
+        sessionId={activeSessionId || ''}
+        onAdjudicated={handleAdjudicated}
       />
     </div>
   );

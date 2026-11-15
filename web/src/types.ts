@@ -52,6 +52,29 @@ export interface AuditFinding {
   confidence_score: number;
 }
 
+export interface ComplianceCheck {
+  standard: string;
+  description: string;
+  status: 'COMPLIANT' | 'FLAGGED' | 'REQUIRES_HUMAN_ACTION' | 'NOT_APPLICABLE';
+  notes: string;
+}
+
+export interface ComplianceReport {
+  overall_status: string;
+  checks: ComplianceCheck[];
+}
+
+export interface HumanAdjudication {
+  officer_id: string;
+  officer_name: string;
+  officer_role: string;
+  decision: string;
+  justification: string;
+  conditions?: string[];
+  signature_hash: string;
+  timestamp: string;
+}
+
 export interface SynthesisResult {
   decision: DecisionOutcome;
   epistemic_convergence_score: number;
@@ -63,6 +86,8 @@ export interface SynthesisResult {
   preserved_dissents: string[];
   action_rationale: string;
   executive_summary: string;
+  compliance?: ComplianceReport;
+  merkle_root?: string;
 }
 
 export interface Block {
@@ -108,4 +133,13 @@ export interface EngineEvent {
   role?: AgentRole;
   timestamp: string;
   data: any;
+}
+
+export interface ModelArenaConfig {
+  advocate_provider: string;
+  advocate_model: string;
+  skeptic_provider: string;
+  skeptic_model: string;
+  auditor_provider: string;
+  auditor_model: string;
 }
