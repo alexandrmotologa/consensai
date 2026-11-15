@@ -368,6 +368,14 @@ func (s *Server) handleDeliberate(w http.ResponseWriter, r *http.Request) {
 					"head_hash":   ledgerObj.Blocks[len(ledgerObj.Blocks)-1].Hash,
 				},
 			})
+
+			// Broadcast session completed after ledger commitment
+			broadcaster.Broadcast(protocol.EngineEvent{
+				Type:      "session_completed",
+				SessionID: state.ID,
+				Timestamp: time.Now().UTC(),
+				Data:      state,
+			})
 		}
 	}()
 

@@ -227,7 +227,6 @@ func (e *Engine) RunDeliberation(
 	state.CurrentPhase = "COMPLETED"
 
 	emit("synthesis_complete", 4, RoleSynthesizer, synthesis)
-	emit("session_completed", 4, "", state)
 
 	return state, nil
 }

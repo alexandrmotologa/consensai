@@ -270,10 +270,23 @@ export const App: React.FC = () => {
       }
     });
 
-    sse.addEventListener('session_completed', () => {
+    sse.addEventListener('session_completed', async (e: MessageEvent) => {
       setIsRunning(false);
       setCurrentPhase('COMPLETED');
       setActiveRole(undefined);
+      try {
+        const data = JSON.parse(e.data);
+        const sid = data.session_id || data.data?.id;
+        if (sid) {
+          setActiveSessionId(sid);
+          const lRes = await fetch(`/api/deliberate/${sid}/ledger`);
+          if (lRes.ok) setLedger(await lRes.json());
+          const mRes = await fetch(`/api/deliberate/${sid}/memo`);
+          if (mRes.ok) setMemoMarkdown(await mRes.text());
+        }
+      } catch (err) {
+        console.error('Error handling session_completed:', err);
+      }
       if (sseRef.current) {
         sseRef.current.close();
       }
