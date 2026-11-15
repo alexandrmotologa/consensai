@@ -1,0 +1,39 @@
+# Binaries and build artifacts
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Node / Web dependencies
+node_modules/
+web/dist/
+web/.vite/
+.npm
+package-lock.json.log
+
+# Environment and sensitive keys
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~
