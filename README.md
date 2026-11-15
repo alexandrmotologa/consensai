@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/logo.svg" alt="consensai logo" width="120" height="120" />
+  <img src="docs/images/logo.png?raw=true" alt="consensai Logo" width="130" style="border-radius: 24px;" />
 </p>
 
 <h1 align="center">consensai</h1>
@@ -65,6 +65,13 @@ Block inspector displaying chained block hashes, Merkle root verification, and a
 Self-contained HTML compliance certificate with official seal formatting, Merkle root digest, statutory rule checklists, and officer signature lines.
 
 ![Printable Official Certificate](docs/images/audit_certificate.png)
+
+### 6. Responsive Mobile Viewport
+Fully fluid layout optimized across mobile (390px), tablet (768px), and desktop displays without horizontal overflow, clipped cards, or misaligned typography.
+
+<p align="center">
+  <img src="docs/images/cockpit_mobile.png" alt="Responsive Mobile Cockpit" width="360" style="border-radius: 16px; border: 1px solid #334155;" />
+</p>
 
 ---
 
